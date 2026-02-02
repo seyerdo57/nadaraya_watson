@@ -97,25 +97,12 @@ st.title("Nadaraya-Watson Envelope (LuxAlgo)")
 if 'results' not in st.session_state:
     st.session_state.results = []
 
-<<<<<<< HEAD
-=======
 # Market Seçimi (Butondan önce olmalı)
 market_option = st.radio("Market Seçiniz:", ("NASDAQ 100", "Asya Marketi"), horizontal=True)
-
->>>>>>> 685f992 (İlk kurulum ve Nasdaq 100)
 if st.button('Hassas Taramayı Başlat'):
     start_time = time.time()
     status_place = st.empty()
     
-<<<<<<< HEAD
-    symbols = [
-        "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META", "AVGO", "TSLA", "COST", "ASML",
-        "ADBE", "NFLX", "AMD", "PEP", "AZN", "LIN", "TMUS", "CSCO", "INTU", "QCOM",
-        "TXN", "AMAT", "ISRG", "AMGN", "INTC", "HON", "VRTX", "BKNG", "BK", "ADP",
-        "REGN", "MDLZ", "LRCX", "ADI", "PANW", "SNPS", "MU", "KLAC", "CDNS", "MELI",
-        "PDD", "MAR", "PYPL", "CSX", "CRWD", "ORCL", "MNST", "ABNB", "LULU", "ADSK"
-    ]
-=======
     if market_option == "NASDAQ 100":
         symbols = [
             "AAPL", "MSFT", "NVDA", "GOOGL", "GOOG", "AMZN", "META", "AVGO", "TSLA", "COST",
@@ -137,8 +124,6 @@ if st.button('Hassas Taramayı Başlat'):
             "BABA", "MCHI", "BIDU", "JD", "NTDOY", "TCEHY", "XIACY", "FXI", "VO", "VOO", 
             "PDD", "SONY"
         ]
-        
->>>>>>> 685f992 (İlk kurulum ve Nasdaq 100)
     results = []
     
     status_place.markdown(f"⏳ **Veriler indiriliyor...**")
