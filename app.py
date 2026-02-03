@@ -10,6 +10,18 @@ ssl._create_default_https_context = ssl._create_unverified_context
 
 st.set_page_config(page_title="LuxAlgo Final Precision", layout="wide")
 
+# Reduce top whitespace
+st.markdown("""
+    <style>
+        .block-container {
+            padding-top: 1rem;
+            padding-bottom: 0rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 def calculate_lux_ultra_precise(symbol, df_slice, info, live_price=None):
     try:
         # 1. Veri Hazırlığı
@@ -98,8 +110,9 @@ if 'results' not in st.session_state:
     st.session_state.results = []
 
 # Market Seçimi (Butondan önce olmalı)
-market_option = st.radio("Market Seçiniz:", ("NASDAQ 100", "Asya Marketi"), horizontal=True)
-if st.button('Hassas Taramayı Başlat'):
+market_option = st.radio("Market Seçiniz:", ("NASDAQ 100", "S&P 100", "ASYA", "BİST 30"), horizontal=True)
+
+if st.button('İncele'):
     start_time = time.time()
     status_place = st.empty()
     
@@ -116,13 +129,38 @@ if st.button('Hassas Taramayı Başlat'):
             "BIIB", "TTD", "CSGP", "DDOG", "ON", "DLTR", "ILMN", "EXPE", "WBD", "ZM",
             "ZSC", "GFS", "ENPH", "ARM", "PDD", "EBAY", "SIRI", "VRSK", "ALGN", "WBA"
         ]
-        # Remove duplicates just in case the user list had any
+        # Remove duplicates
         symbols = list(set(symbols))
-    else:
+    elif market_option == "S&P 100":
+        # S&P 100 (OEF) Components - Representative List
+        symbols = [
+            "AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "GOOG", "BRK-B", "LLY", "AVGO",
+            "JPM", "TSLA", "XOM", "UNH", "V", "PG", "MA", "COST", "JNJ", "HD",
+            "MRK", "ABBV", "KO", "CRM", "BAC", "PEP", "WMT", "RACE", "ACN", "MCD",
+            "LIN", "CSCO", "NFLX", "AMD", "AZN", "SAP", "INTU", "QCOM", "IBM", "TXN",
+            "GE", "VZ", "NOW", "AMAT", "UBER", "DIS", "ISRG", "PFE", "AMGN", "INTC",
+            "CAT", "GS", "CMCSA", "DHR", "NEE", "RTX", "T", "HON", "UNP", "AXP",
+            "LOW", "SPGI", "PM", "PGR", "BLK", "BKNG", "SYK", "TJX", "ELV", "C",
+            "VRTX", "MDT", "ADP", "MMC", "GILD", "DE", "LMT", "BSX", "CI", "ADI",
+            "PANW", "BA", "MDLZ", "REGN", "MU", "KLAC", "FI", "PLD", "TMUS", "LRCX",
+            "ETN", "SNPS", "CDNS", "CB", "SO", "DUK", "MO", "CL", "ZTS", "ITW"
+        ]
+        symbols = list(set(symbols))
+    elif market_option == "ASYA":
         # Asya Marketi
         symbols = [
             "BABA", "MCHI", "BIDU", "JD", "NTDOY", "TCEHY", "XIACY", "FXI", "VO", "VOO", 
             "PDD", "SONY"
+        ]
+    else:
+        # BİST 30 (Yahoo Finance için .IS uzantısı gerekir)
+        symbols = [
+            "AKBNK.IS", "ALARK.IS", "ARCLK.IS", "ASELS.IS", "ASTOR.IS", "BIMAS.IS",
+            "BRSAN.IS", "DOAS.IS", "EKGYO.IS", "ENJSA.IS", "EREGL.IS", "FROTO.IS",
+            "GARAN.IS", "GUBRF.IS", "HEKTS.IS", "ISCTR.IS", "KCHOL.IS", "KONTR.IS",
+            "KOZAL.IS", "KRDMD.IS", "ODAS.IS", "OYAKC.IS", "PETKM.IS", "PGSUS.IS",
+            "SAHOL.IS", "SASA.IS", "SISE.IS", "TCELL.IS", "THYAO.IS", "TOASO.IS",
+            "TUPRS.IS", "YKBNK.IS", "VESTL.IS", "EUPWR.IS" 
         ]
     results = []
     
@@ -199,7 +237,12 @@ if st.button('Hassas Taramayı Başlat'):
             if not results: st.error(f"Döngü Hatası ({s}): {e}")
             pass
             
-    status_place.success(f"Tamamlandı! Toplam Süre: {time.time() - start_time:.1f} sn")
+    status_place.markdown(
+        f"<div style='background-color: #d4edda; color: #155724; padding: 5px; border-radius: 5px; font-size: 12px; text-align: center; border: 1px solid #c3e6cb;'>"
+        f"✅ Tamamlandı! Toplam Süre: {time.time() - start_time:.1f} sn"
+        f"</div>", 
+        unsafe_allow_html=True
+    )
     st.session_state.results = results
     
     if not results:
@@ -238,40 +281,65 @@ if st.session_state.results:
         "PE (FWD)": "{:.2f}"
     }, na_rep="N/A")
     
-    # Apply Logic: 
-    # Üst Uzaklık: 0-10 -> Açık Kırmızı (#ff9999), <0 -> Koyu Kırmızı (#8b0000)
-    def style_upper(val):
-        if pd.isna(val): return ''
-        if val < 0: return 'background-color: #8b0000; color: white'
-        elif 0 <= val < 10: return 'background-color: #ff9999; color: black'
-        return ''
-
-    # Alt Uzaklık: 0-10 -> Açık Yeşil (#99ff99), <0 -> Koyu Yeşil (#006400)
-    def style_lower(val):
-        if pd.isna(val): return ''
-        if val < 0: return 'background-color: #006400; color: white'
-        elif 0 <= val < 10: return 'background-color: #99ff99; color: black'
-        return ''
-
-    styler.map(style_upper, subset=['Üst Uzaklık %'])
-    styler.map(style_lower, subset=['Alt Uzaklık %'])
-
-    # Apply Selection Highlight (Yellow) - Overrides previous colors
+    # Consolidated Styling Function to handle Selection Blending
     selected_rows = st.session_state.get("stocks_table", {}).get("selection", {}).get("rows", [])
     
-    def highlight_selected_rows(row):
-        if row.name in selected_rows:
-            return ['background-color: #ffff00; color: black'] * len(row)
-        return [''] * len(row)
+    def apply_styles(row):
+        styles = [''] * len(row)
+        is_selected = row.name in selected_rows
         
-    styler.apply(highlight_selected_rows, axis=1)
+        for i, col in enumerate(row.index):
+            val = row[col]
+            bg_color = None
+            text_color = None
+            
+            # 1. Determine Conditional Base Color
+            if col == 'Üst Uzaklık %':
+                if pd.notna(val):
+                    if val < 0: 
+                        bg_color = '#8b0000'; text_color = 'white' # Dark Red
+                    elif 0 <= val < 10: 
+                        bg_color = '#ff9999'; text_color = 'black' # Light Red
+                        
+            elif col == 'Alt Uzaklık %':
+                if pd.notna(val):
+                    if val < 0: 
+                        bg_color = '#006400'; text_color = 'white' # Dark Green
+                    elif 0 <= val < 10: 
+                        bg_color = '#99ff99'; text_color = 'black' # Light Green
+            
+            # 2. Apply Selection Overlay (Blending Logic)
+            if is_selected:
+                if bg_color is None:
+                    bg_color = '#ffffcc' # Pale Yellow (Transparent-ish effect on white)
+                    text_color = 'black'
+                else:
+                    # Blend with Yellow approximation
+                    if bg_color == '#8b0000':   bg_color = '#ad4c00' # Brown/Rust
+                    elif bg_color == '#ff9999': bg_color = '#ffb76b' # Peach/Orange
+                    elif bg_color == '#006400': bg_color = '#4c9200' # Olive
+                    elif bg_color == '#99ff99': bg_color = '#b7fe6b' # Lime
+                    text_color = 'black' # Force black text for readability on yellow mix
+                    
+            if bg_color:
+                s = f'background-color: {bg_color}'
+                if text_color: s += f'; color: {text_color}'
+                styles[i] = s
+            elif is_selected:
+                # Text color correction for plainly selected rows if needed
+                styles[i] = 'color: black'
+                
+        return styles
+
+    styler.apply(apply_styles, axis=1)
 
     event = st.dataframe(
         styler,
         on_select="rerun",
         selection_mode="multi-row",
         hide_index=True,
-        key="stocks_table"
+        key="stocks_table",
+        use_container_width=True
     )
     
     # Optional: Display selected rows or actions if needed
