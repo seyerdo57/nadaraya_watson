@@ -5,6 +5,9 @@ import numpy as np
 import ssl
 import time
 import concurrent.futures
+from st_keyup import st_keyup
+
+ssl._create_default_https_context = ssl._create_unverified_context
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
@@ -85,6 +88,10 @@ def calculate_lux_ultra_precise(symbol, df_slice, info, live_price=None):
         # 5. Temel Veriler (Info dict'ten al)
         pe_ratio = info.get('trailingPE', None)
         fwd_pe_ratio = info.get('forwardPE', None)
+        # pegRatio bazen None dönüyor, trailingPegRatio alternatifini dene
+        peg_ratio = info.get('pegRatio', None)
+        if peg_ratio is None:
+            peg_ratio = info.get('trailingPegRatio', None)
         market_cap = info.get('marketCap', None)
         industry = info.get('industry', 'N/A')
         
@@ -98,7 +105,8 @@ def calculate_lux_ultra_precise(symbol, df_slice, info, live_price=None):
             "Üst Uzaklık %": round(((upper_band - current_price) / current_price) * 100, 2),
             "Alt Uzaklık %": round(((current_price - lower_band) / current_price) * 100, 2),
             "PE": round(pe_ratio, 2) if pe_ratio else None,
-            "PE (FWD)": round(fwd_pe_ratio, 2) if fwd_pe_ratio else None
+            "PE (FWD)": round(fwd_pe_ratio, 2) if fwd_pe_ratio else None,
+            "PEG": round(peg_ratio, 2) if peg_ratio else None
         }
     except Exception as e:
         return str(e)
@@ -108,9 +116,19 @@ st.title("Nadaraya-Watson Envelope (LuxAlgo)")
 
 if 'results' not in st.session_state:
     st.session_state.results = []
+    
+if 'symbol_search_input' not in st.session_state:
+    st.session_state.symbol_search_input = ""
 
+# Callback to clear results
+def clear_results():
+    st.session_state.results = []
+    # Clear search input when market changes (optional but good UX)
+    st.session_state.symbol_search_input = ""
+    # Clear the dynamic specific selection state if needed, though dynamic key handles the widget reset, results data persists
+    
 # Market Seçimi (Butondan önce olmalı)
-market_option = st.radio("Market Seçiniz:", ("NASDAQ 100", "S&P 100", "ASYA", "BİST 30"), horizontal=True)
+market_option = st.radio("Market Seçiniz:", ("NASDAQ 100", "S&P 100", "ASYA", "BİST 30"), horizontal=True, on_change=clear_results)
 
 if st.button('İncele'):
     start_time = time.time()
@@ -253,6 +271,23 @@ if st.button('İncele'):
 
 if st.session_state.results:
     df = pd.DataFrame(st.session_state.results)
+    
+    # --- FİLTRELEME ALANI ---
+    # Kullanıcının hisse arayabilmesi için
+    st.write("---")
+    col_filter1, col_filter2 = st.columns([1, 3])
+    with col_filter1:
+        # st_keyup ile her harf basıldığında rerun tetiklenir (debounce=500 daha güvenli)
+        # Sadece key kullanıyoruz, value binding kaldırıldı (state persistence için key yeterli)
+        search_symbol = st_keyup("🔍 Sembol Ara:", 
+                                 placeholder="Örn: AAPL, THYAO", 
+                                 debounce=500, 
+                                 key="symbol_search_input")
+        
+    if search_symbol:
+        df = df[df['Sembol'].str.contains(search_symbol.upper(), na=False)]
+    
+    # Sıralama ve Index Reset (Filtrelemeden sonra yapılmalı ki seçimler doğru çalışsın)
     df = df.sort_values(by="Piyasa Değeri", ascending=False).reset_index(drop=True)
     
     # Styling
@@ -278,11 +313,13 @@ if st.session_state.results:
         "Üst Uzaklık %": "{:.2f}",
         "Alt Uzaklık %": "{:.2f}",
         "PE": "{:.2f}", 
-        "PE (FWD)": "{:.2f}"
+        "PE (FWD)": "{:.2f}",
+        "PEG": "{:.2f}"
     }, na_rep="N/A")
     
     # Consolidated Styling Function to handle Selection Blending
-    selected_rows = st.session_state.get("stocks_table", {}).get("selection", {}).get("rows", [])
+    # Use dynamic key based on market_option to isolate selections per list
+    selected_rows = st.session_state.get(f"stocks_table_{market_option}", {}).get("selection", {}).get("rows", [])
     
     def apply_styles(row):
         styles = [''] * len(row)
@@ -307,6 +344,10 @@ if st.session_state.results:
                         bg_color = '#006400'; text_color = 'white' # Dark Green
                     elif 0 <= val < 10: 
                         bg_color = '#99ff99'; text_color = 'black' # Light Green
+            
+            elif col == 'PEG':
+                if pd.notna(val) and val < 1:
+                    bg_color = '#006400'; text_color = 'white' # Dark Green (Undervalued)
             
             # 2. Apply Selection Overlay (Blending Logic)
             if is_selected:
@@ -338,7 +379,7 @@ if st.session_state.results:
         on_select="rerun",
         selection_mode="multi-row",
         hide_index=True,
-        key="stocks_table",
+        key=f"stocks_table_{market_option}",
         use_container_width=True
     )
     
